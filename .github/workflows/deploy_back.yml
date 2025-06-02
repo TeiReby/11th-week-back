@@ -5,8 +5,8 @@ name: "Deploy Backend to Elastic Beanstalk"
 on:
   push:
     branches:
-      - main
-
+      - answer
+      
 jobs:
   build-and-deploy:
     name: Build & Deploy to EB
@@ -22,13 +22,13 @@ jobs:
           node-version: 18
 
       - name: 의존성 설치 (Backend)
-        working-directory: ./backend   # monorepo라면 backend 디렉터리에서
+        working-directory: ./
         run: |
           npm ci
           npm run build               # (필요 시) 빌드 스크립트 실행
 
       - name: EB 배포를 위한 ZIP 패키지 생성
-        working-directory: ./backend
+        working-directory: ./
         run: |
           # EB는 애플리케이션 파일 전체가 들어있는 ZIP을 입출력으로 요구
           zip -r ../backend-deploy.zip ./*
