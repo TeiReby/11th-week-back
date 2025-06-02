@@ -2,7 +2,7 @@ name: "Deploy Python Backend to Elastic Beanstalk"
 
 # main 브랜치에 Push(=Merge)가 발생했을 때만 트리거
 on:
-  push:
+  merge:
     branches:
       - answer
 
