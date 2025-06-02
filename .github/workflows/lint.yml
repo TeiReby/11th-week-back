@@ -2,7 +2,7 @@ name: "Backend PR Lint (Python)"
 
 on:
   pull_request:
-    branches: [ main ]    # main 브랜치로 merge되기 전 PR에 대해서만
+    branches: answer
 
 jobs:
   backend-lint:
