@@ -4,7 +4,7 @@ name: "Deploy Python Backend to Elastic Beanstalk"
 on:
   push:
     branches:
-      - main
+      - answer
 
 jobs:
   deploy-backend:
