@@ -37,7 +37,7 @@ jobs:
           sudo apt-get install -y unzip
           unzip -o /tmp/backend-deploy.zip -d /home/ubuntu/11th-week-back 
           cd /home/ubuntu/11th-week-back
-          source ./venv/bin/activate
+          source ./venv_for_django/bin/activate
           pip install -r requirements.txt
           python manage.py migrate
           python manage.py collectstatic --noinput
