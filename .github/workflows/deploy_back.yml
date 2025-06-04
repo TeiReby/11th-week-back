@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1) 코드 체크아웃
+      # 1) 코드 체크아웃: 소스코드 가져오기
       - name: Checkout repository
         uses: actions/checkout@v3
 
@@ -21,10 +21,10 @@ jobs:
           # 레포 루트(모든 파일) → backend-deploy.zip ( .git/, .github/ 제외 )
           zip -r backend-deploy.zip ./* -x "*.git*" -x ".github/*"
 
-      # 3) SSH 키 파일로 저장
+      # 3) GitHub Secrets의 SSH 키를 파일로 저장
       - name: Setup SSH key
         run: |
-          echo "${{ secrets.EC2_SSH_KEY }}" > ./deploy_key.pem
+          echo "${{ secrets.EC2_SSH_KEY }}" | base64 -d > ./deploy_key.pem
           chmod 600 ./deploy_key.pem
 
       # 4) ZIP 파일을 EC2 /tmp/ 에 업로드
