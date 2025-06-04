@@ -46,8 +46,8 @@ jobs:
       # 5) ZIP 파일과 deploy.sh 파일을 EC2 /tmp/ 에 업로드
       - name: Copy ZIP and deploy.sh to EC2
         run: |
-          scp -i ./deploy_key.pem ./deploy.sh -o StrictHostKeyChecking=no \
-            backend-deploy.zip \
+          scp -i ./deploy_key.pem -o StrictHostKeyChecking=no \ 
+            ./deploy.sh backend-deploy.zip \
             ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/tmp/
 
       # 6) EC2에 deploy.sh 실행 명령 전달
