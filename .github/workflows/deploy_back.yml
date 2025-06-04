@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1) 코드 체크아웃: 소스코드 가져오기
+      # 1) 코드 체크아웃
       - name: Checkout repository
         uses: actions/checkout@v3
 
@@ -21,29 +21,46 @@ jobs:
           # 레포 루트(모든 파일) → backend-deploy.zip ( .git/, .github/ 제외 )
           zip -r backend-deploy.zip ./* -x "*.git*" -x ".github/*"
 
-      # 3) GitHub Secrets의 SSH 키를 파일로 저장
+      # 3) SSH 키 파일로 저장
       - name: Setup SSH key
         run: |
-          echo "${{ secrets.EC2_SSH_KEY }}" | base64 -d > ./deploy_key.pem
+          echo "${{ secrets.EC2_SSH_KEY }}" > ./deploy_key.pem
           chmod 600 ./deploy_key.pem
 
-      # 4) ZIP 파일을 EC2 /tmp/ 에 업로드
-      - name: Copy ZIP to EC2
+      # 4) deploy.sh 파일 작성
+      - name: Create deploy.sh dynamically
         run: |
-          scp -i ./deploy_key.pem -o StrictHostKeyChecking=no \
-            backend-deploy.zip \
-            ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/tmp/
+          cat << 'EOF' > deploy.sh
+          #!/bin/bash
+          set -e
+          sudo apt-get update
+          sudo apt-get install -y unzip
+          unzip -o /tmp/backend-deploy.zip -d /home/ubuntu/11th-week-back 
+          cd /home/ubuntu/11th-week-back
+          source ./venv_for_django/bin/activate
+          pip install -r requirements.txt
+          python manage.py migrate
+          python manage.py collectstatic --noinput
+          sudo systemctl restart gunicorn
+          sudo systemctl restart nginx
+          EOF
 
-      # 5) EC2에 deploy.sh 실행 명령 전달
+      # 5) ZIP 파일과 deploy.sh 파일을 EC2 /tmp/ 에 업로드
+      - name: Copy ZIP and deploy.sh to EC2
+        run: |
+          scp -i ./deploy_key.pem -o StrictHostKeyChecking=no ./deploy.sh backend-deploy.zip ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/tmp/
+
+      # 6) EC2에 deploy.sh 실행 명령 전달
       - name: Execute deploy script on EC2
         run: |
           ssh -i ./deploy_key.pem -o StrictHostKeyChecking=no \
             ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} \
-            "bash /home/${{ secrets.EC2_USER }}/deploy.sh"
+            "bash /tmp/deploy.sh"
 
-      # 6) 로컬에 남은 파일 정리 (선택)
+      # 7) 로컬에 남은 파일 정리 (선택)
       - name: Cleanup local artifacts
         if: always()
         run: |
           rm -f ./deploy_key.pem
+          rm -f ./deploy.sh
           rm -f ./backend-deploy.zip
