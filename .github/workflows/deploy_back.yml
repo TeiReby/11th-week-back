@@ -1,6 +1,6 @@
 name: "Deploy Django Backend to EC2 via SSH"
 
-# answer 브랜치에 Push(=Merge)가 발생했을 때 트리거
+# answer 브랜치에 Push(=Merge)가 발생했을 때 트리거됨.
 on:
   push:
     branches:
