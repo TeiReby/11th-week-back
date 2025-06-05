@@ -33,22 +33,3 @@ jobs:
 
       - name: Run isort check # import 정렬 도구
         run: isort --check-only .
-
-  # lint-frontend:
-  #   name: Frontend Lint
-  #   runs-on: ubuntu-latest
-  #   working-directory: ./frontend # frontend 서브폴더 지정
-  #   steps:
-  #     - name: 코드 체크아웃
-  #       uses: actions/checkout@v3
-
-  #     - name: Node.js 설정 (버전 지정)
-  #       uses: actions/setup-node@v3
-  #       with:
-  #         node-version: 18
-
-  #     - name: 의존성 설치
-  #       run: npm ci
-
-  #     - name: ESLint 실행
-  #       run: npm run lint
