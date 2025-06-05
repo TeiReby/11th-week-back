@@ -22,9 +22,12 @@ jobs:
 
       - name: 의존성 패키지 설치
         run: |
+          python -m venv venv
+          source venv/bin/activate
           python -m pip install --upgrade pip
+          pip install -r requirements.txt 
           pip install pylint pylint-django 
 
       - name: Run pylint check
-        run: pylint --load-plugins pylint_django .
+        run: source venv/bin/activate && pylint --load-plugins pylint_django .
 
