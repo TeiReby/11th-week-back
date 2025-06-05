@@ -1,5 +1,6 @@
 name: "Deploy Django Backend to EC2 via SSH"
 
+# answer 브랜치에 Push(=Merge)가 발생했을 때 트리거
 on:
   push:
     branches:
@@ -10,13 +11,14 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1) 레포 코드 체크아웃
+      # 1) 코드 체크아웃
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      # 2) 배포용 ZIP 생성 ( .git/, .github/ 제외 )
+      # 2) 배포용 ZIP 생성
       - name: Create deploy ZIP
         run: |
+          # 레포 루트(모든 파일) → backend-deploy.zip ( .git/, .github/ 제외 )
           zip -r backend-deploy.zip ./* -x "*.git*" -x ".github/*"
 
       # 3) SSH 키 파일로 저장
@@ -25,47 +27,37 @@ jobs:
           echo "${{ secrets.EC2_SSH_KEY }}" > ./deploy_key.pem
           chmod 600 ./deploy_key.pem
 
-      # 4) deploy.sh 파일을 0칸 들여쓰기 상태로 생성
+      # 4) deploy.sh 파일 작성
       - name: Create deploy.sh dynamically
         run: |
           cat << 'EOF' > deploy.sh
-#!/bin/bash
-set -e
+          #!/bin/bash
+          set -e
+          sudo apt-get update
+          sudo apt-get install -y unzip
+          unzip -o /tmp/backend-deploy.zip -d /home/ubuntu/11th-week-back 
+          cd /home/ubuntu/11th-week-back
+          source ./venv_for_django/bin/activate
+          pip install -r requirements.txt
+          python manage.py migrate
+          python manage.py collectstatic --noinput
+          sudo systemctl restart gunicorn
+          sudo systemctl restart nginx
+          EOF
 
-# 1) EC2에 필요한 패키지 설치
-sudo apt-get update
-sudo apt-get install -y unzip
-
-# 2) ZIP 풀기
-unzip -o /tmp/backend-deploy.zip -d /home/ubuntu/11th-week-back
-
-# 3) 가상환경 활성화 및 의존성 설치
-cd /home/ubuntu/11th-week-back
-source ./venv_for_django/bin/activate
-pip install -r requirements.txt
-
-# 4) 마이그레이션 & 정적 파일 수집
-python manage.py migrate --noinput
-python manage.py collectstatic --noinput
-
-# 5) Gunicorn + Nginx 재시작 (서비스 이름 확인 필요)
-sudo systemctl restart gunicorn
-sudo systemctl restart nginx
-
-EOF
-
-      # 5) ZIP 파일과 deploy.sh를 EC2의 /tmp/로 복사
+      # 5) ZIP 파일과 deploy.sh 파일을 EC2 /tmp/ 에 업로드
       - name: Copy ZIP and deploy.sh to EC2
         run: |
           scp -i ./deploy_key.pem -o StrictHostKeyChecking=no ./deploy.sh backend-deploy.zip ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/tmp/
 
-      # 6) EC2에서 deploy.sh 실행
+      # 6) EC2에 deploy.sh 실행 명령 전달
       - name: Execute deploy script on EC2
         run: |
-          ssh -i ./deploy_key.pem -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} \
+          ssh -i ./deploy_key.pem -o StrictHostKeyChecking=no \
+            ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} \
             "bash /tmp/deploy.sh"
 
-      # 7) 로컬 워크플로우 러너에 남은 파일 정리
+      # 7) 로컬에 남은 파일 정리 (선택)
       - name: Cleanup local artifacts
         if: always()
         run: |
