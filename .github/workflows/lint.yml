@@ -1,4 +1,4 @@
-# .github/workflows/lint-on-pr.yml
+# .github/workflows/lint.yml
 name: "PR Lint Check"
 
 # PR이 생성되거나 업데이트될 때마다 실행
@@ -11,7 +11,6 @@ jobs:
   lint-backend:
     name: Backend Lint
     runs-on: ubuntu-latest
-    # working-directory: ./ # 만약 monorepo라면 backend 서브폴더 지정
     steps:
       - name: GitHub 레포지토리의 코드 체크아웃
         uses: actions/checkout@v3
@@ -23,14 +22,16 @@ jobs:
 
       - name: 의존성 패키지 설치
         run: |
+          python -m venv venv
+          source venv/bin/activate
           python -m pip install --upgrade pip
-          pip install flake8 black isort
+          pip install -r requirements.txt 
+          pip install pylint pylint-django 
 
-      - name: Run flake8 # 코드스타일, 오류 검사
-        run: flake8 .
-
-      - name: Run black check # 코드 포매터
-        run: black --check .
-
-      - name: Run isort check # import 정렬 도구
-        run: isort --check-only .
+      - name: Run pylint check
+        run: |
+          source venv/bin/activate --load-plugins pylint_django \
+           --django-settings-module=seminar.settings \
+           --disable=C,R,W \
+           --ignore=venv .
+           
