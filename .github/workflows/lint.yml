@@ -30,8 +30,7 @@ jobs:
 
       - name: Run pylint check
         run: |
-          source venv/bin/activate 
-          --load-plugins pylint_django \
+          source venv/bin/activate --load-plugins pylint_django \
            --django-settings-module=seminar.settings \
            --disable=C,R,W \
            --ignore=venv .
