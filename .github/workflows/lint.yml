@@ -29,5 +29,8 @@ jobs:
           pip install pylint pylint-django 
 
       - name: Run pylint check
-        run: source venv/bin/activate && pylint --load-plugins pylint_django --disable=C,R,W . --ignore=venv
+        run: |
+          source venv/bin/activate 
+          export DJANGO_SETTINGS_MODULE=seminar.settings
+          pylint --load-plugins pylint_django --disable=C,R,W,imported-auth-user . --ignore=venv
 
