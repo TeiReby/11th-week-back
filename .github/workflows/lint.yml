@@ -25,6 +25,6 @@ jobs:
           python -m pip install --upgrade pip
           pip install pylint pylint-django 
 
-      - name: Run pylint check # import 정렬 도구
+      - name: Run pylint check
         run: pylint --load-plugins pylint_django .
 
