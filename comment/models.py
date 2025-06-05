@@ -7,6 +7,7 @@ class Comment(models.Model):
     content = models.TextField()
     author = models.ForeignKey(User, on_delete=models.CASCADE, related_name='comments')
     created_at = models.DateTimeField(auto_now_add=True)
+    is_modified = models.BooleanField(default=False)
 
     def __str__(self):
         return self.content[:20]

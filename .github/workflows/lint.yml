@@ -1,47 +1,37 @@
-# .github/workflows/lint-on-pr.yml
+# .github/workflows/lint.yml
 name: "PR Lint Check"
 
 # PR이 생성되거나 업데이트될 때마다 실행
 on:
   pull_request:
+    branches: ["answer"]
     types: [opened, synchronize, reopened]
 
 jobs:
   lint-backend:
     name: Backend Lint
     runs-on: ubuntu-latest
-    working-directory: ./backend          # 만약 monorepo라면 backend 서브폴더 지정
     steps:
-      - name: 코드 체크아웃
+      - name: GitHub 레포지토리의 코드 체크아웃
         uses: actions/checkout@v3
 
-      - name: Node.js 설정 (버전 지정)
-        uses: actions/setup-node@v3
+      - name: Python 설정 (버전 지정)
+        uses: actions/setup-python@v4
         with:
-          node-version: 18
+          python-version: "3.12" # 프로젝트에 설정된 버전
 
-      - name: 의존성 설치
-        run: npm ci
+      - name: 의존성 패키지 설치
+        run: |
+          python -m venv venv
+          source venv/bin/activate
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt 
+          pip install pylint pylint-django 
 
-      - name: ESLint 실행
-        run: npm run lint
-        # -- 만약 lint 오류가 있으면 이 단계에서 실패 → PR에 에러 표시됨
-
-  lint-frontend:
-    name: Frontend Lint
-    runs-on: ubuntu-latest
-    working-directory: ./frontend         # frontend 서브폴더 지정
-    steps:
-      - name: 코드 체크아웃
-        uses: actions/checkout@v3
-
-      - name: Node.js 설정 (버전 지정)
-        uses: actions/setup-node@v3
-        with:
-          node-version: 18
-
-      - name: 의존성 설치
-        run: npm ci
-
-      - name: ESLint 실행
-        run: npm run lint
+      - name: Run pylint check
+        run: |
+          source venv/bin/activate --load-plugins pylint_django \
+           --django-settings-module=seminar.settings \
+           --disable=C,R,W \
+           --ignore=venv .
+           

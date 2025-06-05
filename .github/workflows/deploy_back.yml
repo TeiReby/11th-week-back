@@ -1,57 +1,67 @@
-# .github/workflows/deploy-backend-to-eb.yml
-name: "Deploy Backend to Elastic Beanstalk"
+name: "Deploy Django Backend to EC2 via SSH"
 
-# main 브랜치에 push(=merge) 될 때만 실행
+# answer 브랜치에 Push(=Merge)가 발생했을 때 트리거됨.
 on:
   push:
     branches:
-      - main
+      - answer
 
 jobs:
-  build-and-deploy:
-    name: Build & Deploy to EB
+  deploy:
     runs-on: ubuntu-latest
 
     steps:
-      - name: 코드 체크아웃
+      # 1) 코드 체크아웃
+      - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: Node.js 설정
-        uses: actions/setup-node@v3
-        with:
-          node-version: 18
-
-      - name: 의존성 설치 (Backend)
-        working-directory: ./backend   # monorepo라면 backend 디렉터리에서
+      # 2) 배포용 ZIP 생성
+      - name: Create deploy ZIP
         run: |
-          npm ci
-          npm run build               # (필요 시) 빌드 스크립트 실행
+          # 레포 루트(모든 파일) → backend-deploy.zip ( .git/, .github/ 제외 )
+          zip -r backend-deploy.zip ./* -x "*.git*" -x ".github/*"
 
-      - name: EB 배포를 위한 ZIP 패키지 생성
-        working-directory: ./backend
+      # 3) SSH 키 파일로 저장
+      - name: Setup SSH key
         run: |
-          # EB는 애플리케이션 파일 전체가 들어있는 ZIP을 입출력으로 요구
-          zip -r ../backend-deploy.zip ./*
+          echo "${{ secrets.EC2_SSH_KEY }}" > ./deploy_key.pem
+          chmod 600 ./deploy_key.pem
 
-      - name: AWS 자격증명 설정
-        uses: aws-actions/configure-aws-credentials@v2
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
-
-      - name: Elastic Beanstalk에 애플리케이션 업로드
-        # eb-cli를 사용하지 않고 AWS CLI로도 가능하나, 여기서는 aws-cli 배포 예시
+      # 4) deploy.sh 파일 작성
+      - name: Create deploy.sh dynamically
         run: |
-          # 1) EB 애플리케이션 버전 생성 (SourceBundle S3 업로드)
-          aws s3 cp backend-deploy.zip s3://YOUR_EB_S3_BUCKET/backend-deploy-${{ github.sha }}.zip
+          cat << 'EOF' > deploy.sh
+          #!/bin/bash
+          set -e
+          sudo apt-get update
+          sudo apt-get install -y unzip
+          unzip -o /tmp/backend-deploy.zip -d /home/ubuntu/11th-week-back 
+          cd /home/ubuntu/11th-week-back
+          source ./venv_for_django/bin/activate
+          pip install -r requirements.txt
+          python manage.py makemigrations
+          python manage.py migrate
+          python manage.py collectstatic --noinput
+          sudo systemctl restart gunicorn
+          sudo systemctl restart nginx
+          EOF
 
-          aws elasticbeanstalk create-application-version \
-            --application-name YOUR_EB_APP_NAME \
-            --version-label ${{ github.sha }} \
-            --source-bundle S3Bucket="YOUR_EB_S3_BUCKET",S3Key="backend-deploy-${{ github.sha }}.zip"
+      # 5) ZIP 파일과 deploy.sh 파일을 EC2 /tmp/ 에 업로드
+      - name: Copy ZIP and deploy.sh to EC2
+        run: |
+          scp -i ./deploy_key.pem -o StrictHostKeyChecking=no ./deploy.sh backend-deploy.zip ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/tmp/
 
-          # 2) EB 환경 업데이트 (deploy)
-          aws elasticbeanstalk update-environment \
-            --environment-name YOUR_EB_ENV_NAME \
-            --version-label ${{ github.sha }}
+      # 6) EC2에 deploy.sh 실행 명령 전달
+      - name: Execute deploy script on EC2
+        run: |
+          ssh -i ./deploy_key.pem -o StrictHostKeyChecking=no \
+            ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} \
+            "bash /tmp/deploy.sh"
+
+      # 7) 로컬에 남은 파일 정리 (선택)
+      - name: Cleanup local artifacts
+        if: always()
+        run: |
+          rm -f ./deploy_key.pem
+          rm -f ./deploy.sh
+          rm -f ./backend-deploy.zip
